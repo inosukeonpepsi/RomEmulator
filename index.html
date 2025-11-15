@@ -1,27 +1,27 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Doug's NES Emulator</title>
 <style>
-  :root{--bg:#0f1724;--card:#0b1220;--accent:#ff0066;--muted:#94a3b8}
-  html,body{height:100%;margin:0;font-family:Inter,ui-sans-serif,system-ui,Segoe UI,Roboto,"Helvetica Neue",Arial}
-  body{background:linear-gradient(180deg,#071026 0%, #071020 60%);color:#e6eef8;padding:24px;box-sizing:border-box}
-  .layout{display:flex;gap:20px;align-items:flex-start}
-  .left{flex:3}
-  .right{flex:2;background:linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));border-radius:12px;padding:16px;max-height:90vh;overflow-y:auto}
-  .card{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));border-radius:12px;padding:18px;box-shadow:0 6px 30px rgba(2,6,23,0.6)}
-  input[type=file]{background:rgba(255,255,255,0.02); border-radius:8px; padding:8px; color:inherit}
-  button{background:rgba(255,255,255,0.03); border:none; padding:8px 12px; border-radius:8px; color:inherit; cursor:pointer}
-  .big-btn{padding:10px 14px;font-weight:600}
-  .drop-zone{margin-top:12px;padding:18px;border-radius:10px;border:2px dashed rgba(255,255,255,0.06);color:var(--muted);text-align:center;user-select:none}
-  .drop-zone.dragover{background:rgba(255,255,255,0.02);border-color:var(--accent);color:#fff}
-  canvas{width:100%;display:block;background:black;border-radius:8px;margin-top:12px}
-  .muted{color:var(--muted)}
-  pre#log{height:260px;overflow:auto;background:#071026;padding:10px;border-radius:8px;color:var(--muted)}
-  .state-list{margin-top:12px;display:flex;gap:8px;flex-wrap:wrap}
-  .state-chip{background:#0b1220;padding:8px 10px;border-radius:8px;cursor:pointer;border:1px solid rgba(255,255,255,0.02)}
+:root{--bg:#0f1724;--card:#0b1220;--accent:#ff0066;--muted:#94a3b8}
+html,body{height:100%;margin:0;font-family:Inter,ui-sans-serif,system-ui,Segoe UI,Roboto,"Helvetica Neue",Arial}
+body{background:linear-gradient(180deg,#071026 0%,#071020 60%);color:#e6eef8;padding:24px;box-sizing:border-box}
+.layout{display:flex;gap:20px;align-items:flex-start}
+.left{flex:3}
+.right{flex:2;background:linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));border-radius:12px;padding:16px;max-height:90vh;overflow-y:auto}
+.card{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));border-radius:12px;padding:18px;box-shadow:0 6px 30px rgba(2,6,23,0.6)}
+input[type=file]{background:rgba(255,255,255,0.02);border-radius:8px;padding:8px;color:inherit}
+button{background:rgba(255,255,255,0.03);border:none;padding:8px 12px;border-radius:8px;color:inherit;cursor:pointer}
+.big-btn{padding:10px 14px;font-weight:600}
+.drop-zone{margin-top:12px;padding:18px;border-radius:10px;border:2px dashed rgba(255,255,255,0.06);color:var(--muted);text-align:center;user-select:none}
+.drop-zone.dragover{background:rgba(255,255,255,0.02);border-color:var(--accent);color:#fff}
+canvas{width:100%;display:block;background:black;border-radius:8px}
+.muted{color:var(--muted)}
+pre#log{height:260px;overflow:auto;background:#071026;padding:10px;border-radius:8px;color:var(--muted)}
+.state-list{margin-top:12px;display:flex;gap:8px;flex-wrap:wrap}
+.state-chip{background:#0b1220;padding:8px 10px;border-radius:8px;cursor:pointer;border:1px solid rgba(255,255,255,0.02)}
 </style>
 </head>
 <body>
@@ -29,23 +29,16 @@
   <div class="left">
     <div class="card">
       <h1>Doug's NES Emulator</h1>
-      <p class="muted">Upload a NES ROM (.nes) using the file input or drag & drop below.</p>
-
-      <input id="romInput" type="file" accept=".nes" />
-
-      <div id="dropZone" class="drop-zone">
-        Drag & drop your <strong>.nes</strong> file here.
-      </div>
-
+      <p class="muted">Drag & drop a <strong>.nes</strong> ROM here or use the file input below.</p>
+      <input id="romInput" type="file" accept=".nes">
       <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
-        <button id="startBtn" class="big-btn">Start Emulator</button>
+        <button id="startBtn" class="big-btn">Start NES</button>
         <button id="fsBtn">Fullscreen</button>
         <button id="saveStateBtn">Save State</button>
         <button id="loadStateBtn">Load State</button>
       </div>
-
-      <canvas id="screen" width="256" height="240"></canvas>
-
+      <div id="dropZone" class="drop-zone">Drop your .nes ROM here</div>
+      <canvas id="nesScreen" width="256" height="240" style="margin-top:12px"></canvas>
       <div style="margin-top:12px"><span class="muted">Status:</span> <span id="status">idle</span></div>
     </div>
   </div>
@@ -53,6 +46,7 @@
   <div class="right">
     <div class="card">
       <h2>Save States</h2>
+      <p class="muted">States are saved to localStorage.</p>
       <div class="state-list" id="stateList"></div>
       <hr style="margin:12px 0; border-color: rgba(255,255,255,0.03)">
       <h3>Console</h3>
@@ -61,90 +55,91 @@
   </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/emulatorjs/dist/nes.min.js"></script>
+<script src="./dist/emulatorjs.js"></script>
 <script>
-const logEl = document.getElementById('log');
-const statusEl = document.getElementById('status');
+let logEl = document.getElementById('log');
+let statusEl = document.getElementById('status');
 function log(...args){ logEl.textContent += '\n' + args.join(' '); logEl.scrollTop = logEl.scrollHeight; console.log(...args);}
 function setStatus(s){statusEl.textContent = s;}
 
-let romFile = null;
+let nesROM = null;
 const romInput = document.getElementById('romInput');
+romInput.onchange = e => { nesROM = e.target.files[0]; setStatus('ROM selected: '+nesROM.name); }
+
 const dropZone = document.getElementById('dropZone');
-
-romInput.onchange = e => { romFile = e.target.files[0]; log('Selected ROM:', romFile.name); }
-
 dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
 dropZone.addEventListener('dragleave', e => { dropZone.classList.remove('dragover'); });
 dropZone.addEventListener('drop', e => {
   e.preventDefault(); dropZone.classList.remove('dragover');
-  const files = Array.from(e.dataTransfer.files);
-  for(const f of files){ if(f.name.endsWith('.nes')){ romFile=f; log('Dropped ROM:', f.name); break; } }
+  const file = e.dataTransfer.files[0];
+  if(file && file.name.endsWith('.nes')){ nesROM = file; setStatus('ROM selected: '+nesROM.name); log('Dropped ROM:', file.name); }
+  else { log('Ignored non-nes file:', file.name); }
 });
 
-let nes = null;
-let canvas = document.getElementById('screen');
-
-function startEmulator(){
-  if(!romFile){ alert('No ROM selected'); return; }
-  setStatus('Loading ROM...');
-  const reader = new FileReader();
-  reader.onload = function(e){
-    const romData = new Uint8Array(e.target.result);
-    try{
-      if(nes) nes.stop();
-      nes = new EmulatorJS.NES({canvas: canvas});
-      nes.loadROM(romData);
-      nes.start();
-      setStatus('Running');
-      log('Emulator started with ROM:', romFile.name);
-    }catch(err){ log('Error starting NES:', err); setStatus('error'); }
-  };
-  reader.readAsArrayBuffer(romFile);
+let nesInstance = null;
+async function startNES(){
+  if(!nesROM){ alert('Please select a ROM first'); return; }
+  setStatus('loading ROM...');
+  const romBytes = new Uint8Array(await nesROM.arrayBuffer());
+  try{
+    nesInstance = new EmulatorJS.NES({
+      canvas: document.getElementById('nesScreen'),
+      onFrame: ()=>{},
+      onAudio: ()=>{}
+    });
+    nesInstance.loadROM(romBytes);
+    nesInstance.start();
+    setStatus('running');
+    log('NES started:', nesROM.name);
+  }catch(e){
+    log('Error starting NES:', e);
+    setStatus('error');
+  }
 }
 
-document.getElementById('startBtn').addEventListener('click', startEmulator);
+document.getElementById('startBtn').addEventListener('click', startNES);
+
 document.getElementById('fsBtn').addEventListener('click', ()=>{
-  if(!document.fullscreenElement) canvas.requestFullscreen().catch(e=>log('Fullscreen error',e));
+  const el = document.querySelector('.left .card');
+  if(!document.fullscreenElement) el.requestFullscreen().catch(e=>log('Fullscreen error',e));
   else document.exitFullscreen();
 });
 
-/* Save/load states using localStorage */
-function listStates(){ return Object.keys(localStorage).filter(k=>k.startsWith('nes_state_')).sort().reverse(); }
+// Save/Load states
+function listSlots(){ return Object.keys(localStorage).filter(k=>k.startsWith('nes_state_')).sort().reverse(); }
 function refreshStateList(){
-  const c = document.getElementById('stateList'); c.innerHTML='';
-  listStates().forEach(k=>{
-    const name = k.replace('nes_state_','');
+  const c = document.getElementById('stateList'); c.innerHTML = '';
+  listSlots().forEach(k=>{
     const chip = document.createElement('div');
     chip.className='state-chip';
-    chip.textContent=name;
-    chip.onclick=()=>loadState(name);
+    chip.textContent = k.replace('nes_state_','');
+    chip.onclick=()=>{ loadState(k); };
     c.appendChild(chip);
   });
 }
 function saveState(){
-  if(!nes){ alert('Start emulator first'); return; }
-  const state = nes.saveState();
-  const key = 'nes_state_' + (new Date()).toISOString();
-  localStorage.setItem(key, JSON.stringify(Array.from(state)));
+  if(!nesInstance){ alert('Start NES first'); return; }
+  const bytes = nesInstance.saveState();
+  const name = 'slot_'+Date.now();
+  localStorage.setItem('nes_state_'+name, JSON.stringify(Array.from(bytes)));
   refreshStateList();
-  alert('Saved state: '+key);
+  alert('State saved: '+name);
 }
-function loadState(name){
-  if(!nes){ alert('Start emulator first'); return; }
-  const raw = localStorage.getItem('nes_state_'+name);
-  if(!raw){ alert('No such state'); return; }
-  const state = new Uint8Array(JSON.parse(raw));
-  nes.loadState(state);
-  alert('Loaded state: '+name);
+function loadState(slot){
+  if(!nesInstance){ alert('Start NES first'); return; }
+  const raw = localStorage.getItem(slot);
+  if(!raw){ alert('No state: '+slot); return; }
+  const bytes = new Uint8Array(JSON.parse(raw));
+  nesInstance.loadState(bytes);
+  alert('State loaded: '+slot.replace('nes_state_',''));
 }
 
 document.getElementById('saveStateBtn').addEventListener('click', saveState);
-document.getElementById('loadStateBtn').addEventListener('click', ()=>{ 
-  const keys = listStates(); if(!keys.length) return alert('No saved states'); 
-  loadState(keys[0].replace('nes_state_','')); 
+document.getElementById('loadStateBtn').addEventListener('click', ()=>{
+  const slots = listSlots();
+  if(slots.length===0){ alert('No states'); return; }
+  loadState(slots[0]);
 });
-
 refreshStateList();
 </script>
 </body>
