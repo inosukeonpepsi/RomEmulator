@@ -1,161 +1,202 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<title>NDS Emulator</title>
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Doug's NES Emulator</title>
 
 <style>
-  body {
-    background: #0f172a;
-    color: #fff;
-    font-family: Arial, sans-serif;
-    text-align: center;
-    margin: 0;
+  :root {
+    --bg: #0f1724;
+    --card: #0b1220;
+    --accent: #ff0066;
+    --muted: #94a3b8;
   }
-  #screen {
-    width: 512px;
-    height: 768px;
-    background: #000;
-    margin: 20px auto;
-    display: block;
+  html,body {
+    margin:0; padding:0; background:var(--bg); color:white;
+    font-family:Arial,Helvetica,sans-serif;
   }
+
+  header {
+    text-align:center;
+    padding:20px;
+    font-size:32px;
+    font-weight:bold;
+  }
+
+  #container {
+    max-width:900px;
+    margin: auto;
+    padding:20px;
+  }
+
+  #screenBox {
+    background:var(--card);
+    padding:20px;
+    border-radius:16px;
+    text-align:center;
+    box-shadow:0 0 20px rgba(0,0,0,0.4);
+  }
+
+  #emulatorFrame {
+    width:640px;
+    height:480px;
+    background:black;
+    border:none;
+    border-radius:8px;
+  }
+
+  #controls {
+    display:flex;
+    justify-content:center;
+    gap:10px;
+    margin-top:15px;
+  }
+
+  button {
+    background:var(--accent);
+    border:none;
+    color:white;
+    padding:10px 16px;
+    border-radius:8px;
+    cursor:pointer;
+    font-weight:bold;
+    font-size:15px;
+  }
+  button:hover { opacity:0.85; }
+
   #dropZone {
-    width: 400px;
-    margin: 20px auto;
-    padding: 25px;
-    border: 2px dashed #3b82f6;
-    border-radius: 12px;
-    color: #94a3b8;
+    border:2px dashed var(--accent);
+    margin-top:20px;
+    padding:25px;
+    border-radius:12px;
+    color:var(--muted);
+    transition:0.3s;
   }
   #dropZone.drag {
-    background: rgba(59,130,246,0.2);
+    background:rgba(255,0,102,0.15);
   }
-  input[type=file] {
-    margin-top: 15px;
-  }
-  #log {
-    margin-top: 20px;
-    font-size: 14px;
-    color: #94a3b8;
-    white-space: pre-line;
-  }
+
+  #fileInput { margin-top:15px; }
+  #log { margin-top:15px; font-size:14px; color:var(--muted); }
 </style>
 </head>
 <body>
 
-<h1>Nintendo DS Emulator (melonDS WASM)</h1>
+<header>Doug's NES Emulator</header>
 
-<canvas id="screen" width="512" height="768"></canvas>
+<div id="container">
 
-<div id="dropZone">
-  <b>Drop your .nds file here</b><br><br>
-  or <br><br>
-  <input type="file" id="fileInput" accept=".nds">
+  <div id="screenBox">
+    <iframe id="emulatorFrame" src=""></iframe>
+
+    <div id="controls">
+      <button onclick="goFullscreen()">Fullscreen</button>
+      <button onclick="saveState()">Save</button>
+      <button onclick="loadState()">Load</button>
+    </div>
+
+    <div id="dropZone">
+      <b>Drop your NES ROM here</b><br><br>
+      or<br><br>
+      <input type="file" id="fileInput" accept=".nes">
+    </div>
+
+    <div id="log">Waiting for ROM...</div>
+  </div>
+
 </div>
 
-<div id="log">Loading emulator...</div>
-
 <script>
-// ------------------------------
-// Simple log helper
-// ------------------------------
-function log(msg) {
-  document.getElementById("log").textContent += "\n" + msg;
-}
-
-// ------------------------------
-// GitHub RAW paths for BIOS
-// ------------------------------
-const BIOS_PATHS = {
-  "bios7.bin": "https://raw.githubusercontent.com/inosukeonpepsi/RomEmulator/main/bios7.bin",
-  "bios9.bin": "https://raw.githubusercontent.com/inosukeonpepsi/RomEmulator/main/bios9.bin",
-  "firmware.bin": "https://raw.githubusercontent.com/inosukeonpepsi/RomEmulator/main/firmware.bin"
-};
-
-// ------------------------------
-// Load BIOS from GitHub
-// ------------------------------
-async function fetchBIOS(name) {
-  let url = BIOS_PATHS[name];
-  log("Fetching " + name + "...");
-  let resp = await fetch(url);
-  if (!resp.ok) throw new Error("Failed: " + name);
-  let arr = new Uint8Array(await resp.arrayBuffer());
-  log(name + " loaded (" + arr.length + " bytes)");
-  return arr;
-}
-
-// ------------------------------
-// Load melonDS WASM core
-// ------------------------------
-log("Loading melonDS core...");
-let script = document.createElement("script");
-script.src = "https://cdn.jsdelivr.net/gh/44670/melonDS-wasm@master/wasm-port/a.out.js";
-document.body.appendChild(script);
-
-let melonModule = null;
-
-script.onload = async () => {
-  log("melonDS core loaded, initializing...");
-  melonModule = await createMelonDS({
-    canvas: document.getElementById("screen"),
-  });
-
-  // load BIOS into FS
-  try {
-    melonModule.FS.writeFile("bios7.bin", await fetchBIOS("bios7.bin"));
-    melonModule.FS.writeFile("bios9.bin", await fetchBIOS("bios9.bin"));
-    melonModule.FS.writeFile("firmware.bin", await fetchBIOS("firmware.bin"));
-    log("All BIOS files installed.");
-  } catch (e) {
-    log("Error loading BIOS: " + e);
-  }
-
-  log("Ready. Drop a ROM.");
-};
-
-// ------------------------------
-// Drag & Drop ROM Loader
-// ------------------------------
+let frame = document.getElementById("emulatorFrame");
 let dropZone = document.getElementById("dropZone");
 
+// ---------------------------
+// LOG HELPER
+// ---------------------------
+function log(msg) {
+  document.getElementById("log").textContent = msg;
+}
+
+// ---------------------------
+// DRAG + DROP
+// ---------------------------
 dropZone.addEventListener("dragover", e => {
   e.preventDefault();
   dropZone.classList.add("drag");
 });
-
-dropZone.addEventListener("dragleave", e => {
+dropZone.addEventListener("dragleave", () => {
   dropZone.classList.remove("drag");
 });
-
-dropZone.addEventListener("drop", async e => {
+dropZone.addEventListener("drop", e => {
   e.preventDefault();
   dropZone.classList.remove("drag");
-
   let file = e.dataTransfer.files[0];
-  if (file) loadROM(file);
+  if (file) loadNES(file);
 });
 
-// File picker
-document.getElementById("fileInput").addEventListener("change", async e => {
+// ---------------------------
+// FILE PICKER
+// ---------------------------
+document.getElementById("fileInput").addEventListener("change", e => {
   let file = e.target.files[0];
-  if (file) loadROM(file);
+  if (file) loadNES(file);
 });
 
-// ------------------------------
-// Load ROM into the Emulator
-// ------------------------------
-async function loadROM(file) {
+// ---------------------------
+// LOAD ROM → EmulatorJS
+// ---------------------------
+async function loadNES(file) {
   log("Loading ROM: " + file.name);
 
-  let arr = new Uint8Array(await file.arrayBuffer());
-  melonModule.FS.writeFile("game.nds", arr);
+  let buf = await file.arrayBuffer();
+  let base64 = bufferToBase64(buf);
 
-  log("ROM loaded (" + arr.length + " bytes). Booting...");
-  melonModule._runNDS("game.nds");
+  // Load emulator with embedded ROM
+  frame.src =
+    "https://cdn.emulatorjs.org/v1.6.5/?platform=nes&rom=" +
+    encodeURIComponent("data:application/octet-stream;base64," + base64);
+
+  log("ROM loaded!");
 }
 
+// ---------------------------
+// ArrayBuffer → Base64
+// ---------------------------
+function bufferToBase64(buffer) {
+  let binary = "";
+  let bytes = new Uint8Array(buffer);
+  for (let i = 0; i < bytes.length; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binary);
+}
+
+// ---------------------------
+// FULLSCREEN
+// ---------------------------
+function goFullscreen() {
+  frame.requestFullscreen();
+}
+
+// ---------------------------
+// SAVE STATE
+// EmulatorJS uses localStorage
+// Key: "EJS_save" + path
+// ---------------------------
+function saveState() {
+  frame.contentWindow.postMessage({ type: "SAVE_STATE" }, "*");
+  log("Save requested!");
+}
+
+// ---------------------------
+// LOAD STATE
+// ---------------------------
+function loadState() {
+  frame.contentWindow.postMessage({ type: "LOAD_STATE" }, "*");
+  log("Load requested!");
+}
 </script>
+
 </body>
 </html>
