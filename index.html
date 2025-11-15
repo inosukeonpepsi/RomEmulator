@@ -1,81 +1,615 @@
 <!doctype html>
-<html>
+<html lang="en">
 <head>
-<title>Web Emulator</title>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Doug's DS Emulator</title>
+
 <style>
-    body {
-        background: #0f172a;
-        color: white;
-        font-family: Arial, sans-serif;
-        text-align: center;
-        padding: 20px;
-    }
-    #game {
-        width: 800px;
-        height: 600px;
-        margin: 20px auto;
-        background: #111;
-    }
-    input {
-        margin: 20px;
-        padding: 10px;
-        background: #1e293b;
-        border: 1px solid #334155;
-        color: white;
-        border-radius: 6px;
-    }
+  :root{--bg:#0f1724;--card:#0b1220;--accent:#ff0066;--muted:#94a3b8;color-scheme:dark}
+  html,body{height:100%;margin:0;font-family:Inter,ui-sans-serif,system-ui,Segoe UI,Roboto,"Helvetica Neue",Arial}
+  body{
+    background:linear-gradient(180deg,#071026 0%, #071020 60%);
+    color:#e6eef8;
+    padding:24px;
+    box-sizing:border-box;
+  }
+
+  .layout{
+    display:flex;
+    gap:20px;
+  }
+
+  .left{ flex:3; }
+
+  .right{
+    flex:2;
+    background:linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));
+    border-radius:12px;
+    padding:16px;
+    max-height:90vh;
+    overflow-y:auto;
+  }
+
+  .card{
+    background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+    border-radius:12px;
+    padding:18px;
+    box-shadow:0 6px 30px rgba(2,6,23,0.6);
+  }
+
+  .player-wrap{
+    position:relative;
+    padding-bottom:56.25%;
+    height:0;
+    overflow:hidden;
+    border-radius:8px;
+    background:#000;
+    margin-top:12px;
+  }
+
+  .topbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+
+  input[type="text"], input[type="range"], input[type="file"]{
+    background:transparent;
+    border:1px solid rgba(255,255,255,0.06);
+    padding:8px 10px;
+    border-radius:8px;
+    color:inherit;
+  }
+
+  input[type="file"]{ background:rgba(255,255,255,0.02); cursor:pointer; }
+
+  button{
+    background:rgba(255,255,255,0.03);
+    border:none;
+    padding:8px 12px;
+    border-radius:8px;
+    color:inherit;
+    cursor:pointer;
+  }
+
+  .big-btn{
+    padding:10px 14px;
+    font-weight:600;
+  }
+
+  .controls{
+    display:flex;
+    flex-wrap:wrap;
+    gap:10px;
+    margin-top:12px;
+    align-items:center
+  }
+
+  .video-item{
+    display:flex;
+    gap:10px;
+    margin-bottom:10px;
+    cursor:pointer;
+    background:#111a2a;
+    border-radius:8px;
+    padding:10px;
+    transition:0.2s;
+  }
+
+  .drop-zone{
+    margin-top:12px;
+    padding:18px;
+    border-radius:10px;
+    border:2px dashed rgba(255,255,255,0.06);
+    color:var(--muted);
+    text-align:center;
+    user-select:none;
+  }
+  .drop-zone.dragover{
+    background:rgba(255,255,255,0.02);
+    border-color:var(--accent);
+    color:#fff;
+  }
+
+  .screen-wrap{
+    position:relative;
+    width:100%;
+    max-width:640px;
+    margin-top:16px;
+  }
+  canvas{ width:100%; display:block; background:black; border-radius:8px; }
+
+  .small { width:48%; display:inline-block; vertical-align:top; }
+  .muted { color:var(--muted); font-size:0.9rem; }
+
+  .state-list { margin-top:12px; display:flex; gap:8px; flex-wrap:wrap; }
+  .state-chip { background:#0b1220; padding:8px 10px; border-radius:8px; cursor:pointer; border:1px solid rgba(255,255,255,0.02); }
+  .center { text-align:center; }
 </style>
 </head>
+
 <body>
 
-<h1>Upload Your ROM</h1>
-<p>Select a ROM file from your device:</p>
+<div class="layout" style="align-items:flex-start;">
 
-<input type="file" id="romFile" accept=".gba,.gb,.gbc,.nes,.sfc,.smc,.n64,.z64,.bin,.iso">
+  <!-- LEFT SIDE -->
+  <div class="left">
+    <div class="card">
+      <h1>Doug's DS Emulator</h1>
+      <p class="muted">Upload BIOS + firmware + ROM (or drag & drop them to the box below). No files are hosted — everything stays in your browser.</p>
 
-<div id="game"></div>
+      <div style="display:flex;gap:10px;flex-direction:column;margin-top:10px">
+        <label><small class="muted">ARM7 BIOS (bios7.bin)</small><input id="bios7" type="file" accept=".bin"></label>
+        <label><small class="muted">ARM9 BIOS (bios9.bin)</small><input id="bios9" type="file" accept=".bin"></label>
+        <label><small class="muted">Firmware (firmware.bin)</small><input id="firmware" type="file" accept=".bin"></label>
+        <label><small class="muted">Nintendo DS ROM (.nds)</small><input id="rom" type="file" accept=".nds,.zip"></label>
+      </div>
 
-<script src="https://cdn.jsdelivr.net/npm/emulatorjs@latest/dist/emulator.js"></script>
+      <div class="topbar" style="margin-top:12px;">
+        <button id="startBtn" class="big-btn">Start Emulator</button>
+        <button id="fsBtn">Fullscreen</button>
+        <button id="saveStateBtn">Save State</button>
+        <button id="loadStateBtn">Load State</button>
+        <button id="exportStateBtn">Export Save</button>
+        <button id="importStateBtn">Import Save</button>
+      </div>
 
+      <div id="dropZone" class="drop-zone">
+        Drag &amp; drop your <strong>bios7.bin</strong>, <strong>bios9.bin</strong>, <strong>firmware.bin</strong>, and <strong>.nds</strong> files here — or use the file inputs above.
+        <div class="muted" style="margin-top:8px">You can drop them all at once or one-by-one. Filenames inspected: <code>bios7.bin bios9.bin firmware.bin *.nds</code></div>
+      </div>
+
+      <div class="screen-wrap">
+        <!-- Two DS screens stacked (top then bottom) -->
+        <canvas id="screen_top" width="256" height="192" style="margin-top:12px"></canvas>
+        <canvas id="screen_bottom" width="256" height="192" style="margin-top:8px"></canvas>
+      </div>
+
+      <div class="controls">
+        <div class="muted">Status: <span id="status">idle</span></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- RIGHT SIDE -->
+  <div class="right">
+    <h2>Save States</h2>
+    <p class="muted">Save states are stored in your browser (localStorage). You can export or import the raw state bytes.</p>
+
+    <div style="margin-top:8px">
+      <div class="state-list" id="stateList">
+        <!-- small chips of saved states will appear here -->
+      </div>
+
+      <div style="margin-top:8px">
+        <small class="muted">Quick slots auto-named by timestamp.</small>
+      </div>
+    </div>
+
+    <hr style="margin:12px 0; border-color: rgba(255,255,255,0.03)">
+
+    <h3>Console</h3>
+    <pre id="log" style="height:240px; overflow:auto; background:#071026; padding:10px; border-radius:8px; color:var(--muted);">Logs will appear here.</pre>
+  </div>
+
+</div>
+
+<!-- melonDS wasm-port (Emscripten build) - uses jsDelivr to pull from the repo's wasm-port -->
 <script>
-document.getElementById('romFile').addEventListener('change', async function(e) {
-    const file = e.target.files[0];
-    if (!file) return;
+  // NOTE: The following URL points at the github repo's wasm-port build.
+  // If that file changes location/version, update this path.
+  const MELONDS_CORE = "https://cdn.jsdelivr.net/gh/44670/melonDS-wasm@master/wasm-port/a.out.js";
+</script>
+<script src=""></script>
+<script>
+/* ======================
+   Helper / UI Code
+   ====================== */
 
-    const arrayBuffer = await file.arrayBuffer();
-    const blobUrl = URL.createObjectURL(new Blob([arrayBuffer]));
+const logEl = document.getElementById('log');
+function log(...args){
+  try{
+    const s = args.map(a => typeof a === 'string' ? a : JSON.stringify(a)).join(' ');
+    logEl.textContent += '\n' + s;
+    logEl.scrollTop = logEl.scrollHeight;
+    console.log(...args);
+  }catch(e){ console.log(...args); }
+}
+function setStatus(s){ document.getElementById('status').textContent = s; }
 
-    // Detect system by file extension
-    const ext = file.name.split('.').pop().toLowerCase();
+let bios7Blob = null, bios9Blob = null, firmwareBlob = null, romBlob = null;
+const bios7Input = document.getElementById('bios7');
+const bios9Input = document.getElementById('bios9');
+const firmwareInput = document.getElementById('firmware');
+const romInput = document.getElementById('rom');
 
-    const coreMap = {
-        gba: "gba",
-        gb: "gb",
-        gbc: "gbc",
-        nes: "nes",
-        sfc: "snes",
-        smc: "snes",
-        n64: "n64",
-        z64: "n64",
-        bin: "genesis",
-        iso: "psx"
-    };
+bios7Input.onchange = (e)=> bios7Blob = e.target.files[0];
+bios9Input.onchange = (e)=> bios9Blob = e.target.files[0];
+firmwareInput.onchange = (e)=> firmwareBlob = e.target.files[0];
+romInput.onchange = (e)=> romBlob = e.target.files[0];
 
-    let core = coreMap[ext];
-    if (!core) {
-        alert("Unsupported ROM type.");
-        return;
+const dropZone = document.getElementById('dropZone');
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+dropZone.addEventListener('dragleave', e => { dropZone.classList.remove('dragover'); });
+dropZone.addEventListener('drop', async (e) => {
+  e.preventDefault();
+  dropZone.classList.remove('dragover');
+  const files = Array.from(e.dataTransfer.files);
+  for (const f of files) {
+    const name = f.name.toLowerCase();
+    if (name.endsWith('bios7.bin')) { bios7Blob = f; log('Picked bios7:', f.name); }
+    else if (name.endsWith('bios9.bin')) { bios9Blob = f; log('Picked bios9:', f.name); }
+    else if (name.endsWith('firmware.bin')) { firmwareBlob = f; log('Picked firmware:', f.name); }
+    else if (name.endsWith('.nds')) { romBlob = f; log('Picked rom:', f.name); }
+    else {
+      // Accept if unambiguous
+      if (name.endsWith('.bin') && !bios7Blob) { bios7Blob = f; log('Assumed bios7:', f.name); }
+      else if (name.endsWith('.bin') && !bios9Blob) { bios9Blob = f; log('Assumed bios9:', f.name); }
+      else if (name.endsWith('.nds') && !romBlob) { romBlob = f; log('Assumed rom:', f.name); }
+      else log('Dropped file ignored:', f.name);
+    }
+  }
+  updateInputHints();
+});
+
+function updateInputHints(){
+  const hints = [
+    ['bios7', bios7Blob],
+    ['bios9', bios9Blob],
+    ['firmware', firmwareBlob],
+    ['rom', romBlob]
+  ];
+  // update small labels on inputs (placeholder via title)
+  hints.forEach(([id, blob])=>{
+    const el = document.getElementById(id);
+    if(!el) return;
+    el.title = blob ? blob.name : 'no file';
+  });
+}
+updateInputHints();
+
+/* ======================
+   Load melonDS Emscripten build
+   ====================== */
+
+setStatus('loading core...');
+log('Loading melonDS core from:', MELONDS_CORE);
+
+// dynamically load script so we can set Module hooks before it's evaluated
+function loadScript(url){
+  return new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = url;
+    s.onload = () => resolve();
+    s.onerror = (e) => reject(e);
+    document.head.appendChild(s);
+  });
+}
+
+// We'll set up a minimal Module object to hook Emscripten lifecycle.
+window.Module = window.Module || {};
+Module.onRuntimeInitialized = Module.onRuntimeInitialized || function(){};
+Module.preRun = Module.preRun || [];
+Module.postRun = Module.postRun || [];
+Module.print = Module.print || ((...a)=>console.log(...a));
+Module.printErr = Module.printErr || ((...a)=>console.error(...a));
+Module.noExitRuntime = true; // keep runtime alive
+
+let coreLoaded = false;
+let emulatorStarted = false;
+
+(async function initCore(){
+  try{
+    await loadScript(MELONDS_CORE);
+    setStatus('core loaded — waiting runtime');
+    log('Script loaded; waiting for runtime init...');
+    // wait for Emscripten runtime to initialize:
+    const waitRuntime = () => new Promise((res) => {
+      const old = Module.onRuntimeInitialized;
+      Module.onRuntimeInitialized = function(){
+        try { old && old(); } catch(e){}
+        res();
+      };
+    });
+    await waitRuntime();
+    coreLoaded = true;
+    setStatus('core ready');
+    log('Emscripten runtime initialized.');
+    // show any FS files (for debug)
+    try{ log('FS root:', Module.FS.readdir('/')); } catch(e){}
+  }catch(err){
+    setStatus('failed to load core');
+    log('Failed to load melonDS core:', err);
+  }
+})();
+
+/* ======================
+   Helper: write uploaded files into Emscripten FS
+   ====================== */
+
+async function fileToUint8(file){
+  return new Uint8Array(await file.arrayBuffer());
+}
+
+function writeFileToFS(path, bytes){
+  // create path parent if necessary (we write to /)
+  try {
+    if (Module.FS.analyzePath(path).exists) Module.FS.unlink(path);
+  } catch(e){}
+  Module.FS_createDataFile('/', path.replace(/^\//,''), bytes, true, true);
+  log('Wrote', path, 'size', bytes.length);
+}
+
+/* ======================
+   Start emulator: write bios/firmware/rom then call main
+   ====================== */
+
+document.getElementById('startBtn').addEventListener('click', async () => {
+  if (!coreLoaded){
+    alert('Core not ready yet. Wait a few seconds (check console).');
+    return;
+  }
+  if (!bios7Blob || !bios9Blob || !firmwareBlob || !romBlob){
+    alert('Please provide bios7.bin, bios9.bin, firmware.bin, and an .nds ROM (via inputs or drag-drop).');
+    return;
+  }
+
+  setStatus('preparing files');
+  try{
+    // read into memory
+    const b7 = await fileToUint8(bios7Blob);
+    const b9 = await fileToUint8(bios9Blob);
+    const fw = await fileToUint8(firmwareBlob);
+    const rom = await fileToUint8(romBlob);
+
+    // melonDS-wasm expects certain paths; conventions vary by build.
+    // We'll write them to root with canonical names. Adjust if your build expects different paths.
+    writeFileToFS('/bios7.bin', b7);
+    writeFileToFS('/bios9.bin', b9);
+    writeFileToFS('/firmware.bin', fw);
+    writeFileToFS('/game.nds', rom);
+
+    setStatus('files loaded into FS');
+
+    // If build expects different argv, adjust here. Many Emscripten ports will accept filename args.
+    // We'll attempt to call main with the rom name as arg.
+    setStatus('starting emulator');
+    // if callMain exists (Emscripten), call it with arguments
+    try {
+      // Some builds run immediately on load and don't expect callMain. That's okay.
+      if (typeof Module.callMain === 'function') {
+        Module.callMain(['/game.nds']);
+        log('Module.callMain invoked with /game.nds');
+      } else {
+        // fallback: attempt to start any exported start function name
+        if (typeof Module._start === 'function') {
+          Module._start();
+          log('Module._start() invoked');
+        } else {
+          log('No callMain/_start; the port may auto-run or require a different API.');
+        }
+      }
+      emulatorStarted = true;
+      setStatus('running');
+      attachCanvasOutputs(); // try attaching canvas if emu exposes it
+    } catch (err){
+      log('Error launching emulator:', err);
+      setStatus('run failed');
+    }
+  }catch(err){
+    log('Error reading files:', err);
+    setStatus('error');
+  }
+});
+
+/* ======================
+   Canvas wiring (best-effort)
+   ====================== */
+
+function attachCanvasOutputs(){
+  // Many Emscripten ports draw to canvas elements they create or expect.
+  // This code attempts to find the canvas that the port uses and copy frames to our top/bottom canvases,
+  // but behavior varies heavily between builds. If the wasm-port exposes a function to attach canvases,
+  // we'll attempt to call it (common exported name: 'melonAttachCanvases' or similar).
+  // Fallback: if the built module created canvases, attach them to our DOM.
+
+  try{
+    // Common behavior: Emscripten creates <canvas> in document; check for canvases
+    const canvases = document.getElementsByTagName('canvas');
+    if (canvases.length >= 3){
+      // Some ports create multiple canvases; choose first two or last two heuristically
+      log('Detected canvases on page:', canvases.length);
+    }
+    // If the wasm port provides a helper to set canvases, try known names
+    if (typeof Module.setCanvas === 'function') {
+      Module.setCanvas('screen_top','screen_bottom');
+      log('Called Module.setCanvas(screen_top, screen_bottom)');
+      return;
+    }
+    if (typeof Module._setCanvas === 'function') {
+      // bridge through ccall if needed
+      try { Module._setCanvas(); log('Called _setCanvas'); } catch(e){}
+    }
+    // Otherwise, try swapping any existing canvas created by runtime into our wrapper:
+    // find canvas created by wasm port (class/size heuristics)
+    const runtimeCanvas = Array.from(document.querySelectorAll('canvas')).find(c => c !== document.getElementById('screen_top') && c !== document.getElementById('screen_bottom'));
+    if (runtimeCanvas){
+      // copy runtime canvas visual into our top canvas (draw loop)
+      const top = document.getElementById('screen_top');
+      const bottom = document.getElementById('screen_bottom');
+      const ctxTop = top.getContext('2d');
+      const ctxRuntime = runtimeCanvas.getContext('2d');
+      function tick(){
+        try {
+          ctxTop.drawImage(runtimeCanvas, 0, 0, top.width, top.height);
+        } catch(e){}
+        if (emulatorStarted) requestAnimationFrame(tick);
+      }
+      requestAnimationFrame(tick);
+      log('Attached runtime canvas to top screen (visual copy).');
+    } else {
+      log('No runtime canvas found. The core may require a specific glue/attachment API; check the core docs.');
+    }
+  }catch(e){
+    log('attachCanvasOutputs error:', e);
+  }
+}
+
+/* ======================
+   Fullscreen toggle
+   ====================== */
+
+document.getElementById('fsBtn').addEventListener('click', () => {
+  const el = document.querySelector('.screen-wrap');
+  if (!document.fullscreenElement) el.requestFullscreen().catch(e => log('FS error', e));
+  else document.exitFullscreen();
+});
+
+/* ======================
+   Save states (simple): use Module.FS to ask for a state file; fallback to calling an exported save function
+   ====================== */
+
+function saveStateToLocalSlot(name){
+  if (!coreLoaded || !emulatorStarted){
+    alert('Start the emulator before saving state.');
+    return;
+  }
+  try{
+    // Attempt to call an exported function 'saveState' or 'savestate' (different builds vary)
+    // If that doesn't exist, we try to pull a file like '/state.sav' from the FS.
+    let raw = null;
+    if (typeof Module.ccall === 'function') {
+      // Many Emscripten builds export custom functions — try 'save_state' or similar via ccall.
+      try {
+        // This is very build-specific and may not exist.
+        Module.ccall('save_state', 'number', [], []); // attempt fire-and-forget
+      } catch(e){}
     }
 
-    EJS_player = "#game";
-    EJS_gameUrl = blobUrl;
-    EJS_core = core;
+    // Look for any .state or .sav files in FS root (heuristic)
+    const rootFiles = Module.FS.readdir('/').filter(n => !n.startsWith('.'));
+    // common savestate filenames: state.sav, state0.bin, game.state
+    const possible = ['state.bin','state.sav','save.state','state0','state1','state'];
+    let found = null;
+    for (const f of rootFiles){
+      const lower = f.toLowerCase();
+      if (possible.includes(lower) || lower.endsWith('.sav') || lower.endsWith('.state') || lower.endsWith('.bin')){
+        found = f; break;
+      }
+    }
+    if (!found) {
+      // try reading any file that grew after running (as last resort read 'game.sav' or similar)
+      log('No obvious state file found in FS. Root files:', rootFiles);
+      // If the build provides a savestate API, we should use it — otherwise saving may not be supported by this port.
+      alert('Save-state not found in FS automatically. This build might require a specific save-state API. Check console for more details.');
+      return;
+    }
+    const bytes = Module.FS.readFile(found);
+    const arr = Array.from(bytes);
+    localStorage.setItem('ds_state_' + name, JSON.stringify(arr));
+    log('Saved state to localStorage slot:', name, 'file:', found, 'bytes:', arr.length);
+    refreshStateList();
+    alert('Saved state: ' + name);
+  }catch(err){
+    log('saveState error:', err);
+    alert('Save failed; see console for details.');
+  }
+}
 
-    new EJS(EJS_player);
+function loadStateFromLocalSlot(name){
+  if (!coreLoaded || !emulatorStarted){
+    alert('Start the emulator before loading a state.');
+    return;
+  }
+  try{
+    const raw = localStorage.getItem('ds_state_' + name);
+    if (!raw) return alert('No state named: ' + name);
+    const arr = new Uint8Array(JSON.parse(raw));
+    // write back file into FS as 'state.sav' (or same name used when saved)
+    const statePath = '/loaded_state.sav';
+    try { if (Module.FS.analyzePath(statePath).exists) Module.FS.unlink(statePath); } catch(e){}
+    Module.FS_createDataFile('/', statePath.replace(/^\//,''), arr, true, true);
+    log('Wrote state into FS at', statePath, 'size', arr.length);
+
+    // Try to call any exported load-state function if present.
+    if (typeof Module.ccall === 'function') {
+      try { Module.ccall('load_state', 'number', ['string'], [statePath]); } catch(e){}
+    }
+    alert('Loaded state into emulator (written to ' + statePath + '). If the core supports load-state from FS it should pick it up.');
+  }catch(e){
+    log('load state error', e);
+    alert('Load failed; see console for details.');
+  }
+}
+
+/* quick save/load UI wiring */
+document.getElementById('saveStateBtn').addEventListener('click', ()=>{
+  const name = 'slot_' + (new Date()).toISOString();
+  saveStateToLocalSlot(name);
 });
-</script>
+document.getElementById('loadStateBtn').addEventListener('click', ()=>{
+  // load most recent slot
+  const keys = Object.keys(localStorage).filter(k=>k.startsWith('ds_state_')).sort().reverse();
+  if (!keys.length) return alert('No saved states in localStorage.');
+  const k = keys[0].replace('ds_state_','');
+  loadStateFromLocalSlot(k);
+});
+document.getElementById('exportStateBtn').addEventListener('click', ()=>{
+  // export last saved state as file
+  const keys = Object.keys(localStorage).filter(k=>k.startsWith('ds_state_')).sort().reverse();
+  if (!keys.length) return alert('No saved states to export.');
+  const raw = localStorage.getItem(keys[0]);
+  const arr = new Uint8Array(JSON.parse(raw));
+  const blob = new Blob([arr], {type:'application/octet-stream'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = (keys[0].replace('ds_state_','') || 'ds_state') + '.sav';
+  a.click();
+  URL.revokeObjectURL(url);
+});
+document.getElementById('importStateBtn').addEventListener('click', ()=>{
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.sav,.bin';
+  input.onchange = async (e) => {
+    const f = e.target.files[0];
+    if (!f) return;
+    const bytes = new Uint8Array(await f.arrayBuffer());
+    const name = 'slot_imported_' + Date.now();
+    localStorage.setItem('ds_state_' + name, JSON.stringify(Array.from(bytes)));
+    refreshStateList();
+    alert('Imported save to slot: ' + name);
+  };
+  input.click();
+});
 
+/* state list UI */
+function refreshStateList(){
+  const container = document.getElementById('stateList');
+  container.innerHTML = '';
+  const keys = Object.keys(localStorage).filter(k=>k.startsWith('ds_state_')).sort().reverse();
+  for (const k of keys){
+    const name = k.replace('ds_state_','');
+    const chip = document.createElement('div');
+    chip.className = 'state-chip';
+    chip.textContent = name;
+    chip.onclick = ()=> {
+      if (!confirm('Load state "'+name+'"? This will attempt to write the state into the emulator.')) return;
+      loadStateFromLocalSlot(name);
+    };
+    container.appendChild(chip);
+  }
+}
+refreshStateList();
+
+/* Inspect FS (debug helper) */
+window.dumpFS = function(){
+  try{
+    log('FS root:', Module.FS.readdir('/'));
+  }catch(e){
+    log('FS dump error:', e);
+  }
+};
+
+</script>
 </body>
 </html>
