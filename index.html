@@ -38,8 +38,10 @@ pre#log{height:260px;overflow:auto;background:#071026;padding:10px;border-radius
         <button id="loadStateBtn">Load State</button>
       </div>
       <div id="dropZone" class="drop-zone">Drop your .nes ROM here</div>
-      <div id="game" style="margin-top:12px;width:640px;height:480px;max-width:100%"></div>
-      <div style="margin-top:12px"><span class="muted">Status:</span> <span id="status">idle</span></div>
+      <div style="margin-top:12px">
+        <span class="muted">Status:</span> <span id="status">idle</span>
+      </div>
+      <div id="game" style="margin-top:12px;width:100%;max-width:640px;height:480px"></div>
     </div>
   </div>
 
@@ -75,7 +77,14 @@ dropZone.addEventListener('drop', e => {
   else { log('Ignored non-nes file:', file.name); }
 });
 
-// Save/load state helpers
+// Fullscreen
+document.getElementById('fsBtn').addEventListener('click', ()=>{
+  const el = document.getElementById('game');
+  if(!document.fullscreenElement) el.requestFullscreen().catch(e=>log('Fullscreen error',e));
+  else document.exitFullscreen();
+});
+
+// Save/Load states
 function listSlots(){ return Object.keys(localStorage).filter(k=>k.startsWith('nes_state_')).sort().reverse(); }
 function refreshStateList(){
   const c = document.getElementById('stateList'); c.innerHTML = '';
@@ -87,65 +96,63 @@ function refreshStateList(){
     c.appendChild(chip);
   });
 }
-function saveState(){
-  if(!window.EJS_NES){ alert('Start NES first'); return; }
-  const bytes = EJS_NES.saveState();
-  const name = 'slot_'+Date.now();
-  localStorage.setItem('nes_state_'+name, JSON.stringify(Array.from(bytes)));
-  refreshStateList();
-  alert('State saved: '+name);
-}
-function loadState(slot){
-  if(!window.EJS_NES){ alert('Start NES first'); return; }
-  const raw = localStorage.getItem(slot);
-  if(!raw){ alert('No state: '+slot); return; }
-  const bytes = new Uint8Array(JSON.parse(raw));
-  EJS_NES.loadState(bytes);
-  alert('State loaded: '+slot.replace('nes_state_',''));
-}
-refreshStateList();
 
-// Start NES using EmulatorJS directly from official repo
+// EmulatorJS NES integration
+let EJS_NES_Instance = null;
 async function startNES(){
   if(!nesROM){ alert('Please select a ROM first'); return; }
   setStatus('loading ROM...');
-  const romBytes = new Uint8Array(await nesROM.arrayBuffer());
+  const romURL = URL.createObjectURL(nesROM);
 
-  // Create global EJS variables for the loader
+  // Setup EmulatorJS variables
   window.EJS_player = '#game';
   window.EJS_core = 'nes';
+  window.EJS_gameUrl = romURL;
   window.EJS_biosUrl = '';
-  window.EJS_gameUrl = URL.createObjectURL(nesROM);
   window.EJS_pathtodata = 'https://raw.githubusercontent.com/EmulatorJS/EmulatorJS/master/data/';
 
+  // Load the loader.js from official repo
   const loaderScript = document.createElement('script');
   loaderScript.src = 'https://raw.githubusercontent.com/EmulatorJS/EmulatorJS/master/data/loader.js';
   loaderScript.onload = ()=>{
     if(window.EJS_NES){
+      EJS_NES_Instance = window.EJS_NES;
       setStatus('running');
       log('NES started:', nesROM.name);
     } else {
-      log('Error starting NES: EJS_NES not found');
+      log('Error: EJS_NES not defined');
       setStatus('error');
     }
   };
   document.body.appendChild(loaderScript);
 }
 
+// Save/Load states using EmulatorJS saveState/loadState
+function saveState(){
+  if(!EJS_NES_Instance){ alert('Start NES first'); return; }
+  const bytes = EJS_NES_Instance.saveState();
+  const name = 'slot_'+Date.now();
+  localStorage.setItem('nes_state_'+name, JSON.stringify(Array.from(bytes)));
+  refreshStateList();
+  alert('State saved: '+name);
+}
+function loadState(slot){
+  if(!EJS_NES_Instance){ alert('Start NES first'); return; }
+  const raw = localStorage.getItem(slot);
+  if(!raw){ alert('No state: '+slot); return; }
+  const bytes = new Uint8Array(JSON.parse(raw));
+  EJS_NES_Instance.loadState(bytes);
+  alert('State loaded: '+slot.replace('nes_state_',''));
+}
+
 document.getElementById('startBtn').addEventListener('click', startNES);
-
-document.getElementById('fsBtn').addEventListener('click', ()=>{
-  const el = document.querySelector('.left .card');
-  if(!document.fullscreenElement) el.requestFullscreen().catch(e=>log('Fullscreen error',e));
-  else document.exitFullscreen();
-});
-
 document.getElementById('saveStateBtn').addEventListener('click', saveState);
 document.getElementById('loadStateBtn').addEventListener('click', ()=>{
   const slots = listSlots();
   if(slots.length===0){ alert('No states'); return; }
   loadState(slots[0]);
 });
+refreshStateList();
 </script>
 </body>
 </html>
