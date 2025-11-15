@@ -1,0 +1,81 @@
+<!doctype html>
+<html>
+<head>
+<title>Web Emulator</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+    body {
+        background: #0f172a;
+        color: white;
+        font-family: Arial, sans-serif;
+        text-align: center;
+        padding: 20px;
+    }
+    #game {
+        width: 800px;
+        height: 600px;
+        margin: 20px auto;
+        background: #111;
+    }
+    input {
+        margin: 20px;
+        padding: 10px;
+        background: #1e293b;
+        border: 1px solid #334155;
+        color: white;
+        border-radius: 6px;
+    }
+</style>
+</head>
+<body>
+
+<h1>Upload Your ROM</h1>
+<p>Select a ROM file from your device:</p>
+
+<input type="file" id="romFile" accept=".gba,.gb,.gbc,.nes,.sfc,.smc,.n64,.z64,.bin,.iso">
+
+<div id="game"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/emulatorjs@latest/dist/emulator.js"></script>
+
+<script>
+document.getElementById('romFile').addEventListener('change', async function(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const arrayBuffer = await file.arrayBuffer();
+    const blobUrl = URL.createObjectURL(new Blob([arrayBuffer]));
+
+    // Detect system by file extension
+    const ext = file.name.split('.').pop().toLowerCase();
+
+    const coreMap = {
+        gba: "gba",
+        gb: "gb",
+        gbc: "gbc",
+        nes: "nes",
+        sfc: "snes",
+        smc: "snes",
+        n64: "n64",
+        z64: "n64",
+        bin: "genesis",
+        iso: "psx"
+    };
+
+    let core = coreMap[ext];
+    if (!core) {
+        alert("Unsupported ROM type.");
+        return;
+    }
+
+    EJS_player = "#game";
+    EJS_gameUrl = blobUrl;
+    EJS_core = core;
+
+    new EJS(EJS_player);
+});
+</script>
+
+</body>
+</html>
