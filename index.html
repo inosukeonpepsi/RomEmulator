@@ -10,15 +10,55 @@
       height: 100%;
       overflow: hidden;
       background: black;
+      color: white;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-family: sans-serif;
     }
     iframe {
       border: none;
       width: 100%;
       height: 100%;
     }
+    #fallback {
+      display: none;
+      text-align: center;
+    }
+    #fallback a {
+      color: #1AAFFF;
+      font-size: 1.5em;
+      text-decoration: none;
+    }
   </style>
 </head>
 <body>
-  <iframe src="https://ds.44670.org/" allowfullscreen></iframe>
+  <iframe id="dsFrame" src="https://ds.44670.org/" allowfullscreen></iframe>
+  <div id="fallback">
+    <p>Unable to embed the DS player.</p>
+    <p><a href="https://ds.44670.org/" target="_blank">Click here to open it in a new tab</a></p>
+  </div>
+
+  <script>
+    const iframe = document.getElementById('dsFrame');
+    const fallback = document.getElementById('fallback');
+
+    // Detect if iframe is blocked (basic method)
+    iframe.onerror = () => {
+      iframe.style.display = 'none';
+      fallback.style.display = 'block';
+    };
+
+    // Also hide iframe if it fails silently due to X-Frame-Options
+    setTimeout(() => {
+      try {
+        const doc = iframe.contentDocument || iframe.contentWindow.document;
+        if (!doc || !doc.body) throw new Error("Blocked");
+      } catch (e) {
+        iframe.style.display = 'none';
+        fallback.style.display = 'block';
+      }
+    }, 2000);
+  </script>
 </body>
 </html>
